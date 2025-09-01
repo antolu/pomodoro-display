@@ -3,50 +3,55 @@
 Pomodoro Display System - Flask Application
 """
 
-from __future__ import annotations
-
 import os
 import threading
 import time
+from typing import Any
 
-from flask import Flask, jsonify, render_template
+from flask import Flask, Response, jsonify, render_template, request
 from flask_cors import CORS
 
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)  # Enable CORS for remote access
 
+
+DEFAULT_PORT = 5000
+
 # Timer durations in seconds
-DURATIONS = {
+DURATIONS: dict[str, int] = {
     "pomodoro": 25 * 60,  # 25 minutes
     "short_break": 5 * 60,  # 5 minutes
     "long_break": 15 * 60,  # 15 minutes
 }
 
-DEFAULT_PORT = 5000
-
 
 # Global timer state
 class TimerState:
     def __init__(self) -> None:
-        self.active = False
+        self.active: bool = False
         self.mode: str | None = None
         self.start_time: float | None = None
-        self.duration = 0
-        self.auto_cycle = False
-        self.pomodoro_count = 0
-        self.lock = threading.Lock()
+        self.duration: int = 0
+        self.auto_cycle: bool = False
+        self.pomodoro_count: int = 0
+        self.current_task: str = ""
+        self.just_completed: bool = False
+        self.lock: threading.RLock = threading.RLock()
 
-    def start(self, mode: str) -> None:
+    def start(self, mode: str, task: str | None = None) -> None:
         with self.lock:
             self.active = True
             self.mode = mode
             self.start_time = time.time()
             self.duration = DURATIONS.get(mode, 25 * 60)
+            self.just_completed = False
 
             # Track Pomodoro count for auto-cycle
             if mode == "pomodoro":
                 self.pomodoro_count += 1
+                if task:
+                    self.current_task = task
 
     def stop(self) -> None:
         with self.lock:
@@ -54,45 +59,45 @@ class TimerState:
             self.mode = None
             self.start_time = None
             self.duration = 0
+            self.just_completed = False
 
     def get_remaining(self) -> int:
         with self.lock:
-            if not self.active:
+            if not self.active or self.start_time is None:
                 return 0
-            elapsed = time.time() - (self.start_time or 0)
+            elapsed = time.time() - self.start_time
             remaining = max(0, self.duration - elapsed)
 
             # Check if timer completed
             if remaining == 0 and self.active:
                 self.active = False
+                self.just_completed = True
 
-                # Auto-cycle logic
-                if self.auto_cycle:
-                    # Schedule next timer in a separate thread to avoid blocking
-                    threading.Thread(target=self._auto_cycle_next).start()
+                # Don't auto-cycle immediately - wait for user action
+                # Auto-cycle only works from control panel
 
             return int(remaining)
 
-    def _auto_cycle_next(self) -> None:
-        """Automatically start the next timer in the cycle"""
-        time.sleep(1)  # Brief pause before next timer
-
-        if self.mode == "pomodoro":
-            # After 4 pomodoros, take a long break
-            if self.pomodoro_count % 4 == 0:
-                self.start("long_break")
+    def confirm_next(self) -> None:
+        """User confirms to proceed to next session"""
+        with self.lock:
+            self.just_completed = False
+            if self.mode == "pomodoro":
+                # After 4 pomodoros, take a long break
+                if self.pomodoro_count % 4 == 0:
+                    self.start("long_break")
+                else:
+                    self.start("short_break")
             else:
-                self.start("short_break")
-        else:
-            # After any break, start a new pomodoro
-            self.start("pomodoro")
+                # After any break, start a new pomodoro
+                self.start("pomodoro")
 
     def toggle_auto_cycle(self) -> bool:
         with self.lock:
             self.auto_cycle = not self.auto_cycle
             return self.auto_cycle
 
-    def get_status(self) -> dict[str, str | int | bool | None]:
+    def get_status(self) -> dict[str, Any]:
         with self.lock:
             return {
                 "active": self.active,
@@ -101,7 +106,13 @@ class TimerState:
                 "total": self.duration,
                 "auto_cycle": self.auto_cycle,
                 "pomodoro_count": self.pomodoro_count,
+                "current_task": self.current_task,
+                "just_completed": self.just_completed,
             }
+
+    def set_task(self, task: str) -> None:
+        with self.lock:
+            self.current_task = task
 
     def reset_cycle(self) -> None:
         with self.lock:
@@ -114,52 +125,71 @@ timer = TimerState()
 
 # Routes
 @app.route("/")
+def display() -> str:
+    """Fullscreen timer display (main page)"""
+    return render_template("display.html")
+
+
+@app.route("/control")
 def control() -> str:
     """Control panel interface"""
     return render_template("control.html")
 
 
-@app.route("/display")
-def display() -> str:
-    """Fullscreen timer display"""
-    return render_template("display.html")
-
-
 @app.route("/start/<mode>")
-def start_timer(mode: str) -> tuple[str, int] | str:
+def start_timer(mode: str) -> Response:
     """Start timer with specified mode"""
     if mode not in DURATIONS:
         return jsonify({"error": "Invalid mode"}), 400
 
-    timer.start(mode)
+    task = request.args.get("task", "")
+    timer.start(mode, task)
     return jsonify({"status": "started", "mode": mode})
 
 
 @app.route("/stop")
-def stop_timer() -> str:
+def stop_timer() -> Response:
     """Stop/reset the timer"""
     timer.stop()
     return jsonify({"status": "stopped"})
 
 
 @app.route("/status")
-def get_status() -> str:
+def get_status() -> Response:
     """Get current timer status"""
     return jsonify(timer.get_status())
 
 
 @app.route("/toggle_auto")
-def toggle_auto() -> str:
+def toggle_auto() -> Response:
     """Toggle auto-cycle mode"""
     auto_cycle = timer.toggle_auto_cycle()
     return jsonify({"auto_cycle": auto_cycle})
 
 
 @app.route("/reset_cycle")
-def reset_cycle() -> str:
+def reset_cycle() -> Response:
     """Reset the Pomodoro cycle counter"""
     timer.reset_cycle()
     return jsonify({"status": "cycle_reset"})
+
+
+@app.route("/set_task", methods=["POST"])
+def set_task() -> Response:
+    """Set the current task title"""
+    data = request.get_json()
+    if data is None:
+        return jsonify({"error": "Invalid JSON"}), 400
+    task = data.get("task", "")
+    timer.set_task(task)
+    return jsonify({"status": "task_set", "task": task})
+
+
+@app.route("/confirm_next")
+def confirm_next() -> Response:
+    """Confirm proceeding to next session"""
+    timer.confirm_next()
+    return jsonify({"status": "next_confirmed"})
 
 
 # Background timer thread

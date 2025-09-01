@@ -59,7 +59,7 @@ namespaces = false
 pomodoro_display = ["py.typed"]
 
 [project.scripts]
-# project endpoints here
+pomodoro-display = "pomodoro_display.app:main"
 
 # include black configuration for easy to use with VSCode and PyCharm
 # autoformatter

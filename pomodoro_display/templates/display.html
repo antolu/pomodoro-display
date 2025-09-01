@@ -3,122 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pomodoro Timer Display</title>
+    <title>Pomodoro Timer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
         
         body { 
-            font-family: 'Orbitron', monospace; 
-            overflow: hidden;
-            cursor: none;
+            font-family: 'Inter', sans-serif;
+            transition: background-color 1s ease;
         }
         
         .timer-text {
-            font-size: clamp(4rem, 20vw, 20rem);
-            text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
-            letter-spacing: 0.05em;
+            font-size: clamp(5rem, 15vw, 12rem);
+            font-weight: 200;
+            letter-spacing: -0.02em;
         }
         
-        .mode-text {
-            font-size: clamp(1.5rem, 5vw, 4rem);
-            letter-spacing: 0.2em;
+        .task-text {
+            font-size: clamp(1.2rem, 3vw, 2rem);
         }
         
-        .gradient-pomodoro {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        /* Minimalist color schemes */
+        .bg-pomodoro {
+            background-color: #dc2626; /* red-600 */
         }
         
-        .gradient-short-break {
-            background: linear-gradient(135deg, #4ecdc4 0%, #44a3aa 100%);
+        .bg-short-break {
+            background-color: #059669; /* emerald-600 */
         }
         
-        .gradient-long-break {
-            background: linear-gradient(135deg, #6c5ce7 0%, #5f3dc4 100%);
+        .bg-long-break {
+            background-color: #3b82f6; /* blue-500 */
         }
         
-        .gradient-idle {
-            background: linear-gradient(135deg, #2d3436 0%, #636e72 100%);
+        .bg-idle {
+            background-color: #374151; /* gray-700 */
         }
         
-        @keyframes pulse {
-            0%, 100% { 
-                transform: scale(1); 
-                opacity: 1;
-            }
-            50% { 
-                transform: scale(1.02); 
-                opacity: 0.9;
-            }
+        /* Wavy animation only for long break */
+        @keyframes wave {
+            0%, 100% { transform: translateY(0); }
+            25% { transform: translateY(-10px); }
+            75% { transform: translateY(10px); }
         }
         
-        .pulse-animation {
-            animation: pulse 2s ease-in-out infinite;
+        .wave-animation {
+            animation: wave 8s ease-in-out infinite;
         }
         
-        @keyframes countdown {
-            0% { transform: scale(1) rotate(0deg); }
-            50% { transform: scale(1.1) rotate(180deg); }
-            100% { transform: scale(1) rotate(360deg); }
+        /* Gentle fade for prompts */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
-        .progress-ring {
-            transition: stroke-dashoffset 1s linear;
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
         }
         
-        .glow {
-            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
+        /* Button hover effect */
+        .btn-prompt {
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.15);
         }
         
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-        }
-        
-        .float-animation {
-            animation: float 6s ease-in-out infinite;
-        }
-        
-        .particles {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            pointer-events: none;
-        }
-        
-        .particle {
-            position: absolute;
-            display: block;
-            pointer-events: none;
-            width: 5px;
-            height: 5px;
-            background: rgba(255, 255, 255, 0.5);
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            animation: rise 10s infinite ease-in;
-        }
-        
-        @keyframes rise {
-            to {
-                transform: translateY(-100vh) rotate(360deg);
-                opacity: 0;
-            }
-        }
-        
-        /* Fullscreen button hint */
-        .fullscreen-hint {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            cursor: pointer;
-        }
-        
-        body:hover .fullscreen-hint {
-            opacity: 0.7;
+        .btn-prompt:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
         }
         
         /* Hide cursor after inactivity */
@@ -128,93 +81,74 @@
     </style>
 </head>
 <body x-data="pomodoroDisplay()" x-init="init()" 
-      :class="getGradientClass()"
+      :class="getBackgroundClass()"
       class="min-h-screen flex items-center justify-center text-white transition-all duration-1000">
     
-    <!-- Animated Background Particles -->
-    <d[48;42;176;630;1232tiv class="particles">
-        <template x-for="i in 20">
-            <span class="particle" 
-                  :style="`left: ${Math.random() * 100}%; animation-delay: ${Math.random() * 10}s; animation-duration: ${10 + Math.random() * 10}s`">
-            </span>
-        </template>
-    </div>
-
-    <!-- Main Timer Display -->
-    <div class="relative z-10 text-center px-4">
-        <!-- Mode Indicator -->
-        <div class="mode-text uppercase tracking-widest mb-8 opacity-80 float-animation">
+    <!-- Main Container -->
+    <div class="text-center px-8 py-12 w-full max-w-6xl"
+         :class="{'wave-animation': status.mode === 'long_break' && status.active}">
+        
+        <!-- Task Title (if set) -->
+        <div x-show="status.current_task" 
+             class="task-text mb-8 opacity-80 font-light">
+            <span x-text="status.current_task"></span>
+        </div>
+        
+        <!-- Timer Display -->
+        <div class="timer-text tabular-nums">
+            <span x-text="formatTime(status.remaining)"></span>
+        </div>
+        
+        <!-- Session Type -->
+        <div class="mt-6 text-xl opacity-70 font-light tracking-wide">
             <span x-text="getModeDisplay()"></span>
         </div>
         
-        <!-- Timer Circle and Text -->
-        <div class="relative inline-block">
-            <!-- Progress Ring -->
-            <svg class="absolute inset-0 w-full h-full glow" style="transform: rotate(-90deg);" 
-                 viewBox="0 0 400 400">
-                <circle cx="200" cy="200" r="190" 
-                        stroke="rgba(255, 255, 255, 0.1)" 
-                        stroke-width="4" 
-                        fill="none" />
-                <circle cx="200" cy="200" r="190" 
-                        stroke="rgba(255, 255, 255, 0.8)" 
-                        stroke-width="8" 
-                        fill="none"
-                        class="progress-ring"
-                        :stroke-dasharray="1194"
-                        :stroke-dashoffset="getProgressOffset()" />
+        <!-- Session Counter -->
+        <div x-show="status.pomodoro_count > 0" 
+             class="mt-4 text-sm opacity-60">
+            <span>Session <span x-text="status.pomodoro_count"></span></span>
+        </div>
+        
+        <!-- Completion Prompt -->
+        <div x-show="showPrompt" 
+             class="mt-16 fade-in">
+            <div class="mb-6 text-2xl font-light">
+                <span x-text="getPromptMessage()"></span>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button @click="confirmNext()" 
+                        class="btn-prompt px-8 py-4 rounded-lg text-lg font-medium">
+                    <span x-text="getPromptButtonText()"></span>
+                </button>
+                <button @click="skipNext()" 
+                        class="btn-prompt px-8 py-4 rounded-lg text-lg font-medium opacity-70">
+                    Skip
+                </button>
+            </div>
+        </div>
+        
+        <!-- Control Hint (bottom corner) -->
+        <div class="fixed bottom-6 right-6 opacity-30 hover:opacity-60 transition-opacity text-sm">
+            <a href="/control" class="flex items-center gap-2">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.[48;42;176;630;1232t6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                </svg>
+                Control Panel
+            </a>
+        </div>
+        
+        <!-- Fullscreen Toggle (top right) -->
+        <div class="fixed top-6 right-6 opacity-0 hover:opacity-60 transition-opacity cursor-pointer"
+             @click="toggleFullscreen()">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
             </svg>
-            
-            <!-- Timer Text -->
-            <div class="timer-text font-black relative z-10 px-20"
-                 :class="{'pulse-animation': status.active && status.remaining > 0 && status.remaining <= 10}">
-                <span x-text="formatTime(status.remaining)"></span>
-            </div>
-        </div>
-        
-        <!-- Status Indicators -->
-        <div class="mt-8 flex justify-center items-center gap-6 opacity-70">
-            <!-- Active Indicator -->
-            <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-full" 
-                     :class="status.active ? 'bg-green-400 pulse-animation' : 'bg-gray-400'"></div>
-                <span class="text-sm uppercase tracking-wider" 
-                      x-text="status.active ? 'Active' : 'Idle'"></span>
-            </div>
-            
-            <!-- Pomodoro Counter -->
-            <div x-show="status.pomodoro_count > 0" class="flex items-center gap-2">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
-                    <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 100 4h2a2 2 0 100-4h-.5a1 1 0 000-2H8a2 2 0 012 2v9a2 2 0 11-4 0V5z"/>
-                </svg>
-                <span class="text-sm" x-text="`Pomodoro #${status.pomodoro_count}`"></span>
-            </div>
-            
-            <!-- Auto-cycle Indicator -->
-            <div x-show="status.auto_cycle" class="flex items-center gap-2">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"/>
-                </svg>
-                <span class="text-sm uppercase tracking-wider">Auto</span>
-            </div>
-        </div>
-        
-        <!-- Motivational Message -->
-        <div class="mt-12 text-lg opacity-60" x-show="status.active">
-            <span x-text="getMotivationalMessage()"></span>
         </div>
     </div>
     
-    <!-- Fullscreen Hint -->
-    <div class="fullscreen-hint" @click="toggleFullscreen()">
-        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                  d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-        </svg>
-    </div>
-    
-    <!-- Completion Sound (silent by default) -->
+    <!-- Completion Sound -->
     <audio id="completionSound" preload="auto">
         <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZizQIG2m98OScTgwOUavo7blmFgU7k9n1unEiBC13yO/eizEIHWq+8+OWT" type="audio/wav">
     </audio>
@@ -228,32 +162,12 @@
                     remaining: 0,
                     total: 0,
                     auto_cycle: false,
-                    pomodoro_count: 0
+                    pomodoro_count: 0,
+                    current_task: '',
+                    just_completed: false
                 },
+                showPrompt: false,
                 lastRemaining: null,
-                motivationalMessages: {
-                    pomodoro: [
-                        "Stay focused, you've got this!",
-                        "Deep work in progress...",
-                        "Building momentum...",
-                        "Excellence is a habit.",
-                        "Focus is your superpower."
-                    ],
-                    short_break: [
-                        "Take a breath, stretch a little.",
-                        "Recharge and refresh.",
-                        "You earned this break!",
-                        "Rest is productive too.",
-                        "Quick pause, then back to greatness."
-                    ],
-                    long_break: [
-                        "Time for a proper rest.",
-                        "Go for a walk, clear your mind.",
-                        "You've accomplished a lot!",
-                        "Recharge for the next sprint.",
-                        "Well-deserved break time."
-                    ]
-                },
                 
                 init() {
                     this.updateStatus();
@@ -271,19 +185,39 @@
                     
                     // Initialize cursor as hidden
                     document.body.classList.add('hide-cursor');
+                    
+                    // Keyboard shortcuts
+                    document.addEventListener('keydown', (e) => {
+                        if (this.showPrompt) {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                this.confirmNext();
+                            } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                this.skipNext();
+                            }
+                        }
+                    });
                 },
                 
                 async updateStatus() {
                     try {
                         const response = await fetch('/status');
-                        this.status = await response.json();
+                        const newStatus = await response.json();
                         
                         // Check if timer just completed
-                        if (this.lastRemaining > 0 && this.status.remaining === 0 && !this.status.active) {
+                        if (this.status.remaining > 0 && newStatus.remaining === 0 && newStatus.just_completed) {
                             this.onTimerComplete();
                         }
                         
-                        this.lastRemaining = this.status.remaining;
+                        this.status = newStatus;
+                        
+                        // Show prompt when timer completes
+                        if (this.status.just_completed && !this.showPrompt) {
+                            this.showPrompt = true;
+                        } else if (!this.status.just_completed && this.showPrompt) {
+                            this.showPrompt = false;
+                        }
                     } catch (error) {
                         console.error('Failed to update status:', error);
                     }
@@ -293,12 +227,26 @@
                     // Play completion sound
                     const audio = document.getElementById('completionSound');
                     audio.play().catch(e => console.log('Audio play failed:', e));
-                    
-                    // Visual notification
-                    document.body.style.animation = 'pulse 0.5s ease-in-out 3';
-                    setTimeout(() => {
-                        document.body.style.animation = '';
-                    }, 1500);
+                },
+                
+                async confirmNext() {
+                    try {
+                        await fetch('/confirm_next');
+                        this.showPrompt = false;
+                        this.updateStatus();
+                    } catch (error) {
+                        console.error('Failed to confirm next:', error);
+                    }
+                },
+                
+                async skipNext() {
+                    try {
+                        await fetch('/stop');
+                        this.showPrompt = false;
+                        this.updateStatus();
+                    } catch (error) {
+                        console.error('Failed to skip:', error);
+                    }
                 },
                 
                 formatTime(seconds) {
@@ -309,32 +257,41 @@
                 },
                 
                 getModeDisplay() {
-                    if (!this.status.mode) return 'READY TO FOCUS';
-                    return this.status.mode.replace('_', ' ').toUpperCase();
-                },
-                
-                getGradientClass() {
-                    if (!this.status.active || !this.status.mode) return 'gradient-idle';
-                    
+                    if (!this.status.mode) return 'Ready';
                     switch(this.status.mode) {
-                        case 'pomodoro': return 'gradient-pomodoro';
-                        case 'short_break': return 'gradient-short-break';
-                        case 'long_break': return 'gradient-long-break';
-                        default: return 'gradient-idle';
+                        case 'pomodoro': return 'Focus Time';
+                        case 'short_break': return 'Short Break';
+                        case 'long_break': return 'Long Break';
+                        default: return 'Ready';
                     }
                 },
                 
-                getProgressOffset() {
-                    if (!this.status.active || !this.status.total) return 1194;
-                    const progress = 1 - (this.status.remaining / this.status.total);
-                    return 1194 * (1 - progress);
+                getBackgroundClass() {
+                    if (!this.status.active && !this.status.just_completed) return 'bg-idle';
+                    
+                    switch(this.status.mode) {
+                        case 'pomodoro': return 'bg-pomodoro';
+                        case 'short_break': return 'bg-short-break';
+                        case 'long_break': return 'bg-long-break';
+                        default: return 'bg-idle';
+                    }
                 },
                 
-                getMotivationalMessage() {
-                    if (!this.status.mode || !this.motivationalMessages[this.status.mode]) return '';
-                    const messages = this.motivationalMessages[this.status.mode];
-                    const index = Math.floor((this.status.total - this.status.remaining) / 60) % messages.length;
-                    return messages[index];
+                getPromptMessage() {
+                    if (this.status.mode === 'pomodoro') {
+                        return "Great work! Time for a break?";
+                    } else {
+                        return "Break's over. Ready to focus?";
+                    }
+                },
+                
+                getPromptButtonText() {
+                    if (this.status.mode === 'pomodoro') {
+                        const isLongBreak = this.status.pomodoro_count % 4 === 0;
+                        return isLongBreak ? "Take Long Break" : "Take Short Break";
+                    } else {
+                        return "Start Pomodoro";
+                    }
                 },
                 
                 toggleFullscreen() {
