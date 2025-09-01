@@ -15,13 +15,15 @@
         }
         
         .timer-text {
-            font-size: clamp(5rem, 15vw, 12rem);
-            font-weight: 200;
+            font-size: clamp(8rem, 25vw, 20rem);
+            font-weight: 900;
             letter-spacing: -0.02em;
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
         }
         
         .task-text {
-            font-size: clamp(1.2rem, 3vw, 2rem);
+            font-size: clamp(2rem, 6vw, 4rem);
+            font-weight: 500;
         }
         
         /* Minimalist color schemes */
@@ -100,13 +102,13 @@
         </div>
         
         <!-- Session Type -->
-        <div class="mt-6 text-xl opacity-70 font-light tracking-wide">
+        <div class="mt-8 text-4xl opacity-80 font-semibold tracking-wide">
             <span x-text="getModeDisplay()"></span>
         </div>
         
         <!-- Session Counter -->
         <div x-show="status.pomodoro_count > 0" 
-             class="mt-4 text-sm opacity-60">
+             class="mt-6 text-2xl opacity-70 font-medium">
             <span>Session <span x-text="status.pomodoro_count"></span></span>
         </div>
         
