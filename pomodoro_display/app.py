@@ -31,6 +31,7 @@ CONFIG_FILE = "config.json"
 
 # Duration limits (in minutes)
 MAX_DURATION_MINUTES = 120
+NYAN_CAT_DURATION = 10.0
 
 
 # Load durations from config file or use defaults
@@ -86,6 +87,8 @@ class TimerState:
         self.just_completed: bool = False
         self.paused: bool = False
         self.paused_remaining: int = 0
+        self.nyan_cat_active: bool = False
+        self.nyan_cat_start_time: float | None = None
         self.lock: threading.RLock = threading.RLock()
 
     def start(self, mode: str, task: str | None = None) -> None:
@@ -196,6 +199,7 @@ class TimerState:
 
     def get_status(self) -> dict[str, Any]:
         with self.lock:
+            nyan_status = self.check_nyan_cat_status()
             return {
                 "active": self.active,
                 "mode": self.mode,
@@ -206,6 +210,7 @@ class TimerState:
                 "current_task": self.current_task,
                 "just_completed": self.just_completed,
                 "paused": self.paused,
+                "nyan_cat": nyan_status,
             }
 
     def set_task(self, task: str) -> None:
@@ -215,6 +220,27 @@ class TimerState:
     def reset_cycle(self) -> None:
         with self.lock:
             self.pomodoro_count = 0
+
+    def trigger_nyan_cat(self) -> None:
+        """Trigger Nyan Cat animation across all connected clients"""
+        with self.lock:
+            self.nyan_cat_active = True
+            self.nyan_cat_start_time = time.time()
+
+    def check_nyan_cat_status(self) -> dict[str, bool | int]:
+        """Check current Nyan Cat status and auto-deactivate after 10 seconds"""
+        with self.lock:
+            if self.nyan_cat_active and self.nyan_cat_start_time:
+                elapsed = time.time() - self.nyan_cat_start_time
+                if elapsed >= NYAN_CAT_DURATION:  # 10 seconds duration
+                    self.nyan_cat_active = False
+                    self.nyan_cat_start_time = None
+                else:
+                    return {
+                        "active": True,
+                        "remaining": max(0, int(NYAN_CAT_DURATION - elapsed)),
+                    }
+            return {"active": False, "remaining": 0}
 
 
 # Create global timer instance
@@ -320,6 +346,13 @@ def _validate_duration_data(durations_data: dict[str, Any]) -> Response | None:
         except (ValueError, TypeError):
             return jsonify({"error": f"Invalid {key} duration"}), 400
     return None
+
+
+@app.route("/trigger_nyancat")
+def trigger_nyancat() -> Response:
+    """Trigger Nyan Cat animation across all connected clients"""
+    timer.trigger_nyan_cat()
+    return jsonify({"status": "nyan_cat_triggered"})
 
 
 @app.route("/set_durations", methods=["POST"])

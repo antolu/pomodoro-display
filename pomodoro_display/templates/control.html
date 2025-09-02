@@ -488,8 +488,16 @@
                 
                 async updateStatus() {
                     try {
-                        const response = await fetch('/status');
-                        this.status = await response.json();
+                        const response = await fetch(`/status?t=${new Date().getTime()}`);
+                        const newStatus = await response.json();
+
+                        // Check for server-side Nyan Cat activation
+                        if (newStatus.nyan_cat && newStatus.nyan_cat.active && !this.showNyanCat) {
+                            console.log('🌈 Server-side Nyan Cat detected! Starting animation...');
+                            this.startNyanCatAnimation();
+                        }
+
+                        this.status = newStatus;
                         if (!this.taskInput && this.status.current_task) {
                             this.taskInput = this.status.current_task;
                         }
@@ -646,18 +654,32 @@
                     await this.saveSettings();
                 },
                 
-                triggerNyanCat() {
+                async triggerNyanCat() {
                     if (this.showNyanCat) return; // Prevent multiple triggers
-                    
-                    console.log('🌈 Nyan Cat activated! 🐱'); // Debug log
+
+                    try {
+                        // Trigger server-side Nyan Cat for cross-page synchronization
+                        await fetch('/trigger_nyancat');
+                        console.log('🌈 Nyan Cat triggered via server! 🐱');
+                    } catch (error) {
+                        console.error('Failed to trigger Nyan Cat via server:', error);
+                        // Fall back to local trigger if server fails
+                        this.startNyanCatAnimation();
+                    }
+                },
+
+                startNyanCatAnimation() {
+                    if (this.showNyanCat) return; // Prevent multiple triggers
+
+                    console.log('🌈 Nyan Cat animation starting! 🐱');
                     this.showNyanCat = true;
                     this.nyanFlying = true;
-                    
-                    // Hide after animation completes (10 seconds for longer enjoyment)
+
+                    // Hide after animation completes (10 seconds)
                     setTimeout(() => {
                         this.showNyanCat = false;
                         this.nyanFlying = false;
-                        console.log('Nyan Cat animation finished'); // Debug log
+                        console.log('Nyan Cat animation finished');
                     }, 10000);
                 },
                 

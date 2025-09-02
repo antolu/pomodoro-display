@@ -392,6 +392,12 @@
                             this.previousMode = this.status.mode;
                         }
                         
+                        // Check for server-side Nyan Cat activation
+                        if (newStatus.nyan_cat && newStatus.nyan_cat.active && !this.showNyanCat) {
+                            console.log('🌈 Server-side Nyan Cat detected! Starting animation...');
+                            this.startNyanCatAnimation();
+                        }
+                        
                         this.status = newStatus;
                         
                         // Show prompt when timer completes
@@ -489,10 +495,24 @@
                     }
                 },
                 
-                triggerNyanCat() {
+                async triggerNyanCat() {
                     if (this.showNyanCat) return; // Prevent multiple triggers
                     
-                    console.log('🌈 Nyan Cat activated! 🐱'); // Debug log
+                    try {
+                        // Trigger server-side Nyan Cat for cross-page synchronization
+                        await fetch('/trigger_nyancat');
+                        console.log('🌈 Nyan Cat triggered via server! 🐱');
+                    } catch (error) {
+                        console.error('Failed to trigger Nyan Cat via server:', error);
+                        // Fall back to local trigger
+                        this.startNyanCatAnimation();
+                    }
+                },
+                
+                startNyanCatAnimation() {
+                    if (this.showNyanCat) return; // Prevent multiple triggers
+                    
+                    console.log('🌈 Nyan Cat animation starting! 🐱');
                     this.showNyanCat = true;
                     this.nyanFlying = true;
                     
