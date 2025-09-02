@@ -150,9 +150,15 @@
         </div>
     </div>
     
-    <!-- Completion Sound -->
-    <audio id="completionSound" preload="auto">
-        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZizQIG2m98OScTgwOUavo7blmFgU7k9n1unEiBC13yO/eizEIHWq+8+OWT" type="audio/wav">
+    <!-- Audio Notifications -->
+    <!-- Pomodoro completion sound (alarm.wav) -->
+    <audio id="pomodoroCompleteSound" preload="auto">
+        <source src="/static/alarm.wav" type="audio/wav">
+    </audio>
+    
+    <!-- Break completion sound (break.wav) -->
+    <audio id="breakCompleteSound" preload="auto">
+        <source src="/static/break.wav" type="audio/wav">
     </audio>
 
     <script>
@@ -170,10 +176,22 @@
                 },
                 showPrompt: false,
                 lastRemaining: null,
+                previousMode: null,
+                isMuted: false,
                 
                 init() {
+                    // Load mute state from localStorage
+                    this.isMuted = localStorage.getItem('pomodoroMuted') === 'true';
+                    
                     this.updateStatus();
                     setInterval(() => this.updateStatus(), 1000);
+                    
+                    // Listen for mute state changes from control panel
+                    window.addEventListener('storage', (e) => {
+                        if (e.key === 'pomodoroMuted') {
+                            this.isMuted = e.newValue === 'true';
+                        }
+                    });
                     
                     // Auto-hide cursor after 3 seconds of inactivity
                     let cursorTimeout;
@@ -209,7 +227,12 @@
                         
                         // Check if timer just completed
                         if (this.status.remaining > 0 && newStatus.remaining === 0 && newStatus.just_completed) {
-                            this.onTimerComplete();
+                            this.onTimerComplete(this.status.mode);
+                        }
+                        
+                        // Track mode changes to know what just completed
+                        if (this.status.mode !== newStatus.mode) {
+                            this.previousMode = this.status.mode;
                         }
                         
                         this.status = newStatus;
@@ -225,10 +248,23 @@
                     }
                 },
                 
-                onTimerComplete() {
-                    // Play completion sound
-                    const audio = document.getElementById('completionSound');
-                    audio.play().catch(e => console.log('Audio play failed:', e));
+                onTimerComplete(completedMode) {
+                    // Don't play sound if muted
+                    if (this.isMuted) return;
+                    
+                    let audioElement;
+                    if (completedMode === 'pomodoro') {
+                        // Pomodoro just ended - play sharp alert sound
+                        audioElement = document.getElementById('pomodoroCompleteSound');
+                    } else {
+                        // Break just ended - play gentle welcoming sound  
+                        audioElement = document.getElementById('breakCompleteSound');
+                    }
+                    
+                    if (audioElement) {
+                        audioElement.currentTime = 0; // Reset to start
+                        audioElement.play().catch(e => console.log('Audio play failed:', e));
+                    }
                 },
                 
                 async confirmNext() {
