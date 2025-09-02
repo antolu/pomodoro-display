@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  pomodoro-display:
+    build: .
+    container_name: pomodoro-timer
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - pomodoro-network
+
+  # Optional: If you want to use a pre-built image instead
+  # pomodoro-display:
+  #   image: your-registry/pomodoro-display:latest
+  #   container_name: pomodoro-timer
+  #   ports:
+  #     - "5000:5000"
+  #   volumes:
+  #     - ./data:/app/data
+  #   environment:
+  #     - FLASK_ENV=production
+  #     - PYTHONUNBUFFERED=1
+  #   restart: unless-stopped
+
+networks:
+  pomodoro-network:
+    driver: bridge
+
+volumes:
+  pomodoro-data:
+    driver: local
