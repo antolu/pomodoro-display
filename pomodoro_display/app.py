@@ -3,6 +3,7 @@
 Pomodoro Display System - Flask Application
 """
 
+import json
 import os
 import threading
 import time
@@ -18,12 +19,58 @@ CORS(app)  # Enable CORS for remote access
 
 DEFAULT_PORT = 5000
 
-# Timer durations in seconds
-DURATIONS: dict[str, int] = {
+# Default timer durations in seconds
+DEFAULT_DURATIONS: dict[str, int] = {
     "pomodoro": 25 * 60,  # 25 minutes
     "short_break": 5 * 60,  # 5 minutes
     "long_break": 15 * 60,  # 15 minutes
 }
+
+# Config file path
+CONFIG_FILE = "config.json"
+
+# Duration limits (in minutes)
+MAX_DURATION_MINUTES = 120
+
+
+# Load durations from config file or use defaults
+def load_durations() -> dict[str, int]:
+    """Load timer durations from config file, fallback to defaults"""
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, encoding="utf-8") as f:
+                config = json.load(f)
+                durations = config.get("durations", DEFAULT_DURATIONS)
+                # Validate that all required keys exist
+                for key in DEFAULT_DURATIONS:  # noqa: PLC0206
+                    if key not in durations:
+                        durations[key] = DEFAULT_DURATIONS[key]
+                return durations
+    except (OSError, json.JSONDecodeError):
+        pass
+    return DEFAULT_DURATIONS.copy()
+
+
+def save_durations(durations: dict[str, int]) -> bool:
+    """Save timer durations to config file"""
+    try:
+        config = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, encoding="utf-8") as f:
+                config = json.load(f)
+
+        config["durations"] = durations
+
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+    except (OSError, json.JSONDecodeError):
+        return False
+    else:
+        return True
+
+
+# Current durations - loaded from config
+DURATIONS = load_durations()
 
 
 # Global timer state
@@ -248,6 +295,58 @@ def confirm_next() -> Response:
     """Confirm proceeding to next session"""
     timer.confirm_next()
     return jsonify({"status": "next_confirmed"})
+
+
+@app.route("/get_durations")
+def get_durations() -> Response:
+    """Get current timer durations in minutes"""
+    durations_minutes = {key: value // 60 for key, value in DURATIONS.items()}
+    return jsonify({"durations": durations_minutes})
+
+
+def _validate_duration_data(durations_data: dict[str, Any]) -> Response | None:
+    """Validate duration data, return error response if invalid."""
+    required_keys = ["pomodoro", "short_break", "long_break"]
+    for key in required_keys:
+        if key not in durations_data:
+            return jsonify({"error": f"Missing {key} duration"}), 400
+
+        try:
+            minutes = int(durations_data[key])
+            if minutes < 1 or minutes > MAX_DURATION_MINUTES:
+                return jsonify({
+                    "error": f"{key} must be between 1 and {MAX_DURATION_MINUTES} minutes"
+                }), 400
+        except (ValueError, TypeError):
+            return jsonify({"error": f"Invalid {key} duration"}), 400
+    return None
+
+
+@app.route("/set_durations", methods=["POST"])
+def set_durations() -> Response:
+    """Set timer durations (in minutes)"""
+    data = request.get_json()
+    if data is None:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    durations_data = data.get("durations")
+    if not durations_data:
+        return jsonify({"error": "Missing durations"}), 400
+
+    # Validate input
+    validation_error = _validate_duration_data(durations_data)
+    if validation_error:
+        return validation_error
+
+    # Convert minutes to seconds and update
+    new_durations = {key: int(durations_data[key]) * 60 for key in durations_data}
+
+    # Save to config file and update global
+    if save_durations(new_durations):
+        global DURATIONS  # noqa: PLW0603
+        DURATIONS = new_durations
+        return jsonify({"status": "durations_updated", "durations": durations_data})
+    return jsonify({"error": "Failed to save configuration"}), 500
 
 
 # Background timer thread
