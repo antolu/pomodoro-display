@@ -33,6 +33,20 @@ pip install -e .
 pip install .
 ```
 
+### Docker (recommended for deployment)
+
+```bash
+# Using pre-built image
+docker run -d -p 5000:5000 -v ./data:/app/data --name pomodoro-timer antonlu/pomodoro-display:latest
+
+# Using docker-compose
+docker-compose up -d
+
+# Build locally
+docker build -t pomodoro-display .
+docker run -d -p 5000:5000 -v ./data:/app/data --name pomodoro-timer pomodoro-display
+```
+
 ### Manual installation
 
 ```bash
@@ -185,6 +199,60 @@ To access from other devices on your network:
    - Windows: `ipconfig`
    - Mac/Linux: `ifconfig` or `ip addr`
 2. Access via `http://<your-ip>:5000`
+
+## Docker Deployment
+
+The application includes Docker support with multi-platform images (AMD64 and ARM64).
+
+### Pre-built Images
+
+Multi-platform images are available on Docker Hub:
+- `antonlu/pomodoro-display:latest` - Latest stable version
+- `antonlu/pomodoro-display:v1.0` - Specific version tags
+
+### Configuration
+
+- **Port**: Container exposes port 5000
+- **Data persistence**: Mount `/app/data` to persist timer configuration
+- **Health checks**: Built-in health monitoring via `/status` endpoint
+
+### TrueNAS Deployment
+
+The included `docker-compose.yml` is optimized for TrueNAS deployment:
+
+1. Create a new container in TrueNAS
+2. Use image: `antonlu/pomodoro-display:latest`
+3. Map port: `5000:5000`
+4. Add volume: `./data:/app/data` for persistent settings
+5. Enable auto-restart: `unless-stopped`
+
+## CI/CD Pipeline
+
+### Automated Docker Publishing
+
+The repository includes a GitHub Actions workflow that automatically builds and publishes Docker images when version tags are pushed.
+
+#### Setup for Repository Maintainers
+
+1. **Create Docker Hub Token**:
+   - Log in to Docker Hub → Account Settings → Security → Access Tokens
+   - Create token with Read/Write permissions
+
+2. **Add GitHub Secret**:
+   - Repository Settings → Secrets and variables → Actions
+   - Add secret named `DOCKER_TOKEN` with your Docker Hub token
+
+3. **Publish New Version**:
+   ```bash
+   git tag v1.0.1
+   git push origin v1.0.1
+   ```
+
+#### Workflow Features
+- ✅ Multi-platform builds (AMD64 + ARM64)
+- ✅ Automatic semantic versioning from git tags
+- ✅ Build caching for faster builds
+- ✅ Automatic latest tag management
 
 ## Development
 
