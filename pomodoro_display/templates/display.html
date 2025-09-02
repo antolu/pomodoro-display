@@ -97,12 +97,17 @@
         </div>
         
         <!-- Timer Display -->
-        <div class="timer-text tabular-nums">
+        <div class="timer-text tabular-nums" :class="{'opacity-60': status.paused}">
             <span x-text="formatTime(status.remaining)"></span>
         </div>
         
+        <!-- Paused Indicator -->
+        <div x-show="status.paused" class="mt-4 text-3xl font-bold opacity-90 text-yellow-300">
+            ⏸️ PAUSED
+        </div>
+        
         <!-- Session Type -->
-        <div class="mt-8 text-4xl opacity-80 font-semibold tracking-wide">
+        <div class="mt-8 text-4xl font-semibold tracking-wide" :class="status.paused ? 'opacity-50' : 'opacity-80'">
             <span x-text="getModeDisplay()"></span>
         </div>
         
@@ -172,7 +177,8 @@
                     auto_cycle: false,
                     pomodoro_count: 0,
                     current_task: '',
-                    just_completed: false
+                    just_completed: false,
+                    paused: false
                 },
                 showPrompt: false,
                 lastRemaining: null,

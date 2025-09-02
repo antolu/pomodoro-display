@@ -37,6 +37,8 @@ class TimerState:
         self.pomodoro_count: int = 0
         self.current_task: str = ""
         self.just_completed: bool = False
+        self.paused: bool = False
+        self.paused_remaining: int = 0
         self.lock: threading.RLock = threading.RLock()
 
     def start(self, mode: str, task: str | None = None) -> None:
@@ -46,6 +48,8 @@ class TimerState:
             self.start_time = time.time()
             self.duration = DURATIONS.get(mode, 25 * 60)
             self.just_completed = False
+            self.paused = False
+            self.paused_remaining = 0
 
             # Track Pomodoro count for auto-cycle
             if mode == "pomodoro":
@@ -60,19 +64,65 @@ class TimerState:
             self.start_time = None
             self.duration = 0
             self.just_completed = False
+            self.paused = False
+            self.paused_remaining = 0
+
+    def pause(self) -> bool:
+        """Pause the timer, storing current remaining time"""
+        with self.lock:
+            if not self.active or self.paused:
+                return False
+
+            # Store remaining time when pausing
+            if self.start_time is not None:
+                elapsed = time.time() - self.start_time
+                self.paused_remaining = max(0, self.duration - int(elapsed))
+                self.paused = True
+                return True
+            return False
+
+    def resume(self) -> bool:
+        """Resume the timer from paused state"""
+        with self.lock:
+            if not self.active or not self.paused:
+                return False
+
+            # Reset start_time to continue from paused_remaining
+            self.start_time = time.time() - (self.duration - self.paused_remaining)
+            self.paused = False
+            self.paused_remaining = 0
+            return True
+
+    def toggle_pause(self) -> bool:
+        """Toggle between pause and resume states"""
+        with self.lock:
+            if not self.active:
+                return False
+
+            if self.paused:
+                return self.resume()
+            return self.pause()
 
     def get_remaining(self) -> int:
         with self.lock:
-            if not self.active or self.start_time is None:
+            if not self.active:
                 return 0
+
+            # If paused, return the stored remaining time
+            if self.paused:
+                return self.paused_remaining
+
+            # Normal calculation when running
+            if self.start_time is None:
+                return 0
+
             elapsed = time.time() - self.start_time
             remaining = max(0, self.duration - elapsed)
 
-            # Check if timer completed
-            if remaining == 0 and self.active:
+            # Check if timer completed (only when not paused)
+            if remaining == 0 and self.active and not self.paused:
                 self.active = False
                 self.just_completed = True
-
                 # Don't auto-cycle immediately - wait for user action
                 # Auto-cycle only works from control panel
 
@@ -108,6 +158,7 @@ class TimerState:
                 "pomodoro_count": self.pomodoro_count,
                 "current_task": self.current_task,
                 "just_completed": self.just_completed,
+                "paused": self.paused,
             }
 
     def set_task(self, task: str) -> None:
@@ -165,6 +216,13 @@ def toggle_auto() -> Response:
     """Toggle auto-cycle mode"""
     auto_cycle = timer.toggle_auto_cycle()
     return jsonify({"auto_cycle": auto_cycle})
+
+
+@app.route("/toggle_pause")
+def toggle_pause() -> Response:
+    """Toggle pause/resume state"""
+    success = timer.toggle_pause()
+    return jsonify({"paused": timer.paused, "success": success})
 
 
 @app.route("/reset_cycle")
