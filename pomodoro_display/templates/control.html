@@ -21,6 +21,79 @@
             50% { transform: scale(1.05); opacity: 0.9; }
         }
         .pulse-active { animation: pulse-soft 2s infinite; }
+        
+        /* Nyan Cat Easter Egg */
+        .nyan-cat {
+            position: fixed;
+            top: 50%;
+            left: -250px;
+            z-index: 9999;
+            pointer-events: none;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+        }
+        
+        .nyan-rainbow {
+            width: 100vw;
+            height: 60px;
+            background: repeating-linear-gradient(
+                90deg,
+                #ff0000 0px, #ff0000 15px,
+                #ff8800 15px, #ff8800 30px,
+                #ffff00 30px, #ffff00 45px,
+                #00ff00 45px, #00ff00 60px,
+                #0088ff 60px, #0088ff 75px,
+                #8800ff 75px, #8800ff 90px
+            );
+            position: absolute;
+            right: 120px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.9;
+            border-radius: 10px;
+        }
+        
+        .nyan-gif {
+            width: 120px;
+            height: 80px;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            position: relative;
+            z-index: 2;
+        }
+        
+        @keyframes nyanFly {
+            0% {
+                left: -250px;
+            }
+            100% {
+                left: calc(100vw + 50px);
+            }
+        }
+        
+        @keyframes rainbowScroll {
+            0% {
+                background-position: 0px 0px;
+            }
+            100% {
+                background-position: 90px 0px;
+            }
+        }
+        
+        @keyframes rainbowPulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        
+        .nyan-flying {
+            animation: nyanFly 10s linear;
+        }
+        
+        .nyan-flying .nyan-rainbow {
+            animation: rainbowScroll 0.2s linear infinite, rainbowPulse 0.8s ease-in-out infinite;
+        }
     </style>
 </head>
 <body class="min-h-screen timer-gradient text-white">
@@ -296,6 +369,15 @@
                 </div>
             </div>
         </div>
+
+        <!-- Nyan Cat Easter Egg -->
+        <div x-show="showNyanCat" class="nyan-cat" :class="{'nyan-flying': nyanFlying}">
+            <div class="nyan-rainbow"></div>
+            <img src="https://www.nyan.cat/cats/original.gif" 
+                 alt="Nyan Cat" 
+                 class="nyan-gif"
+                 onerror="this.style.display='none'">
+        </div>
     </div>
 
     <script>
@@ -321,6 +403,16 @@
                 settingsMessage: '',
                 settingsMessageType: 'success',
                 showSettingsModal: false,
+                showNyanCat: false,
+                nyanFlying: false,
+                konamiCode: [
+                    'ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown',
+                    'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight',
+                    'KeyB', 'KeyA'
+                ],
+                konamiIndex: 0,
+                secretWord: 'NYANCAT',
+                typedSequence: '',
                 
                 async init() {
                     // Load mute state from localStorage
@@ -331,6 +423,67 @@
                     
                     this.updateStatus();
                     setInterval(() => this.updateStatus(), 1000);
+                    
+                    // Safari-friendly click trigger (click top-left corner 5 times)
+                    let cornerClicks = 0;
+                    const cornerClickArea = 50; // 50px area in top-left corner
+                    document.addEventListener('click', (e) => {
+                        if (e.clientX < cornerClickArea && e.clientY < cornerClickArea) {
+                            cornerClicks++;
+                            console.log(`Corner click ${cornerClicks}/5`);
+                            if (cornerClicks >= 5) {
+                                this.triggerNyanCat();
+                                cornerClicks = 0;
+                            }
+                            // Reset counter after 3 seconds of no clicks
+                            setTimeout(() => { cornerClicks = 0; }, 3000);
+                        }
+                    });
+                    
+                    // Easter egg detection
+                    document.addEventListener('keydown', (e) => {
+                        // Check for Konami code (arrow keys)
+                        if (e.code === this.konamiCode[this.konamiIndex]) {
+                            this.konamiIndex++;
+                            if (this.konamiIndex === this.konamiCode.length) {
+                                this.triggerNyanCat();
+                                this.konamiIndex = 0;
+                            }
+                        } else {
+                            this.konamiIndex = 0;
+                        }
+                        
+                        // Check for secret word (NYANCAT) - ignore if typing in input fields
+                        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                            if (e.key.length === 1 && /[A-Za-z]/.test(e.key)) {
+                                this.typedSequence += e.key.toUpperCase();
+                                console.log('Typed sequence so far:', this.typedSequence); // Debug log
+                                
+                                // Keep only the last 7 characters
+                                if (this.typedSequence.length > this.secretWord.length) {
+                                    this.typedSequence = this.typedSequence.slice(-this.secretWord.length);
+                                }
+                                
+                                // Check if we typed the secret word
+                                if (this.typedSequence === this.secretWord) {
+                                    console.log('Secret word detected! Triggering Nyan Cat'); // Debug log
+                                    this.triggerNyanCat();
+                                    this.typedSequence = '';
+                                }
+                            }
+                        }
+                        
+                        // Simple alternative: Press 'N' key 3 times quickly
+                        if (e.key.toLowerCase() === 'n' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                            this.nKeyCount = (this.nKeyCount || 0) + 1;
+                            setTimeout(() => { this.nKeyCount = 0; }, 2000); // Reset after 2 seconds
+                            if (this.nKeyCount >= 3) {
+                                console.log('Triple N detected! Triggering Nyan Cat'); // Debug log
+                                this.triggerNyanCat();
+                                this.nKeyCount = 0;
+                            }
+                        }
+                    });
                 },
                 
                 async updateStatus() {
@@ -491,6 +644,21 @@
                 async resetSettings() {
                     this.settings = { pomodoro: 25, short_break: 5, long_break: 15 };
                     await this.saveSettings();
+                },
+                
+                triggerNyanCat() {
+                    if (this.showNyanCat) return; // Prevent multiple triggers
+                    
+                    console.log('🌈 Nyan Cat activated! 🐱'); // Debug log
+                    this.showNyanCat = true;
+                    this.nyanFlying = true;
+                    
+                    // Hide after animation completes (10 seconds for longer enjoyment)
+                    setTimeout(() => {
+                        this.showNyanCat = false;
+                        this.nyanFlying = false;
+                        console.log('Nyan Cat animation finished'); // Debug log
+                    }, 10000);
                 },
                 
                 showMessage(message, type) {
