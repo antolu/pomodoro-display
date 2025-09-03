@@ -189,6 +189,13 @@
              class="mt-6 text-2xl opacity-70 font-medium">
             <span>Session <span x-text="status.pomodoro_count"></span></span>
         </div>
+
+        <!-- Message Display -->
+        <div x-show="currentMessage" class="mt-8 fade-in">
+            <div class="text-2xl font-medium opacity-90 px-8">
+                <span x-text="currentMessage"></span>
+            </div>
+        </div>
         
         <!-- Completion Prompt -->
         <div x-show="showPrompt" 
@@ -268,6 +275,7 @@
                 isMuted: false,
                 showNyanCat: false,
                 nyanFlying: false,
+                currentMessage: '',
                 konamiCode: [
                     'ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown',
                     'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight',
@@ -281,13 +289,18 @@
                     // Load mute state from localStorage
                     this.isMuted = localStorage.getItem('pomodoroMuted') === 'true';
                     
+                    // Load current message from localStorage
+                    this.currentMessage = localStorage.getItem('pomodoroCurrentMessage') || '';
+                    
                     this.updateStatus();
                     setInterval(() => this.updateStatus(), 1000);
                     
-                    // Listen for mute state changes from control panel
+                    // Listen for changes from control panel
                     window.addEventListener('storage', (e) => {
                         if (e.key === 'pomodoroMuted') {
                             this.isMuted = e.newValue === 'true';
+                        } else if (e.key === 'pomodoroCurrentMessage') {
+                            this.currentMessage = e.newValue || '';
                         }
                     });
                     

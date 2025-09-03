@@ -5,10 +5,12 @@ Pomodoro Display System - Flask Application
 
 import json
 import os
+import re
 import threading
 import time
 from typing import Any
 
+import google.generativeai as genai
 from flask import Flask, Response, jsonify, render_template, request
 from flask_cors import CORS
 
@@ -77,6 +79,32 @@ def save_durations(durations: dict[str, int]) -> bool:
         return False
     else:
         print(f"Configuration saved successfully to {CONFIG_FILE}")
+        return True
+
+
+def load_config() -> dict[str, Any]:
+    """Load full configuration from config file"""
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, encoding="utf-8") as f:
+                return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        pass
+    return {}
+
+
+def save_config(config: dict[str, Any]) -> bool:
+    """Save full configuration to config file"""
+    try:
+        # Ensure data directory exists
+        os.makedirs(DATA_DIR, exist_ok=True)
+
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"Error saving configuration to {CONFIG_FILE}: {e}")
+        return False
+    else:
         return True
 
 
@@ -395,6 +423,96 @@ def set_durations() -> Response:
         "data_dir": DATA_DIR,
         "writable": os.access(DATA_DIR, os.W_OK) if os.path.exists(DATA_DIR) else False,
     }), 500
+
+
+def load_prompts() -> dict[str, str]:
+    """Load AI prompts from prompts.json file"""
+    prompts_file = os.path.join(os.path.dirname(__file__), "prompts.json")
+    try:
+        with open(prompts_file, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"Error loading prompts from {prompts_file}: {e}")
+        # Fallback prompts
+        return {
+            "pomodoro": "Generate exactly one short inspirational message for focused work. Maximum 50 characters. Use plain text only - no markdown, no asterisks, no parentheses with character counts, no formatting. Just the message text.",
+            "break": "Generate exactly one short fun message for taking a break. Maximum 50 characters. Use plain text only - no markdown, no asterisks, no parentheses with character counts, no formatting. Just the message text.",
+        }
+
+
+def generate_ai_message(timer_mode: str | None) -> str:
+    """Generate inspirational/fun message using Gemini Flash API"""
+    config = load_config()
+    api_key = config.get("gemini_api_key")
+
+    if not api_key:
+        msg = "Gemini API key not configured"
+        raise ValueError(msg)
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-2.5-flash")
+
+    prompts = load_prompts()
+    prompt = prompts["pomodoro"] if timer_mode == "pomodoro" else prompts["break"]
+
+    response = model.generate_content(prompt)
+    message = response.text.strip()
+
+    # Clean up any markdown or formatting that slipped through
+    message = message.replace("**", "").replace("*", "")
+    # Remove character count annotations like "(50 chars)" or "(47/50)"
+    message = re.sub(r"\s*\([^)]*chars?\).*$", "", message, flags=re.IGNORECASE)
+    message = re.sub(r"\s*\(\d+/\d+\).*$", "", message)
+
+    # Ensure message is not too long
+    max_length = 50
+    if len(message) > max_length:
+        message = message[:47] + "..."
+
+    return message
+
+
+@app.route("/generate_message")
+def generate_message() -> Response:
+    """Generate inspirational/fun message based on current timer state"""
+    try:
+        current_mode = timer.mode if timer.active else None
+        message = generate_ai_message(current_mode)
+        return jsonify({"message": message, "mode": current_mode})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/set_api_key", methods=["POST"])
+def set_api_key() -> Response:
+    """Set Gemini API key"""
+    data = request.get_json()
+    if data is None:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    api_key = data.get("api_key", "").strip()
+    if not api_key:
+        return jsonify({"error": "API key is required"}), 400
+
+    try:
+        # Load existing config
+        config = load_config()
+        config["gemini_api_key"] = api_key
+
+        # Save updated config
+        if save_config(config):
+            return jsonify({"status": "api_key_saved"})
+        return jsonify({"error": "Failed to save API key"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/get_api_key_status")
+def get_api_key_status() -> Response:
+    """Check if Gemini API key is configured"""
+    config = load_config()
+    has_key = bool(config.get("gemini_api_key"))
+    return jsonify({"has_api_key": has_key})
 
 
 # Background timer thread

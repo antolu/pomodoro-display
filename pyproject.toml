@@ -52,7 +52,7 @@ include = ["pomodoro_display*"]
 namespaces = false
 
 [tool.setuptools.package-data]
-pomodoro_display = ["py.typed"]
+pomodoro_display = ["py.typed", "templates/*.html", "prompts.json"]
 
 [project.scripts]
 pomodoro-display = "pomodoro_display.app:main"

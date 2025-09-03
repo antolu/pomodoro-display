@@ -1,0 +1,4 @@
+{
+  "pomodoro": "Generate exactly one short inspirational message for focused work. Maximum 50 characters. Use plain text only - no markdown, no asterisks, no parentheses with character counts, no formatting. Just the message text.",
+  "break": "Generate exactly one short fun message for taking a break. Maximum 50 characters. Use plain text only - no markdown, no asterisks, no parentheses with character counts, no formatting. Just the message text."
+}
