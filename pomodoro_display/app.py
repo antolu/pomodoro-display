@@ -26,8 +26,13 @@ DEFAULT_DURATIONS: dict[str, int] = {
     "long_break": 15 * 60,  # 15 minutes
 }
 
-# Config file path
-CONFIG_FILE = "config.json"
+# Config file path - use data directory if available (for Docker), otherwise current directory
+DATA_DIR = (
+    "/app/data"
+    if os.path.exists("/app/data") and os.access("/app/data", os.W_OK)
+    else "."
+)
+CONFIG_FILE = os.path.join(DATA_DIR, "config.json")
 
 # Duration limits (in minutes)
 MAX_DURATION_MINUTES = 120
@@ -55,6 +60,9 @@ def load_durations() -> dict[str, int]:
 def save_durations(durations: dict[str, int]) -> bool:
     """Save timer durations to config file"""
     try:
+        # Ensure data directory exists
+        os.makedirs(DATA_DIR, exist_ok=True)
+
         config = {}
         if os.path.exists(CONFIG_FILE):
             with open(CONFIG_FILE, encoding="utf-8") as f:
@@ -64,9 +72,11 @@ def save_durations(durations: dict[str, int]) -> bool:
 
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"Error saving configuration to {CONFIG_FILE}: {e}")
         return False
     else:
+        print(f"Configuration saved successfully to {CONFIG_FILE}")
         return True
 
 
@@ -379,7 +389,12 @@ def set_durations() -> Response:
         global DURATIONS  # noqa: PLW0603
         DURATIONS = new_durations
         return jsonify({"status": "durations_updated", "durations": durations_data})
-    return jsonify({"error": "Failed to save configuration"}), 500
+    return jsonify({
+        "error": "Failed to save configuration",
+        "config_file": CONFIG_FILE,
+        "data_dir": DATA_DIR,
+        "writable": os.access(DATA_DIR, os.W_OK) if os.path.exists(DATA_DIR) else False,
+    }), 500
 
 
 # Background timer thread
