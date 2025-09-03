@@ -17,16 +17,12 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
 # Copy application code and git metadata for version detection
 COPY pomodoro_display/ ./pomodoro_display/
 COPY pyproject.toml .
 COPY .git/ ./.git/
 
-# Install the application in editable mode
+# Install the application with all dependencies
 RUN pip install -e .
 
 # Create data directory for persistent config
