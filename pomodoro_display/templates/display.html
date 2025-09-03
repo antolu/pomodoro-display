@@ -168,6 +168,13 @@
              class="task-text mb-8 opacity-80 font-light">
             <span x-text="status.current_task"></span>
         </div>
+
+        <!-- Message Display (below task, slightly smaller font) -->
+        <div x-show="status.current_message" class="mb-8 fade-in">
+            <div class="text-3xl font-medium opacity-90 px-8">
+                <span x-text="status.current_message"></span>
+            </div>
+        </div>
         
         <!-- Timer Display -->
         <div class="timer-text tabular-nums" :class="{'opacity-60': status.paused}">
@@ -190,12 +197,6 @@
             <span>Session <span x-text="status.pomodoro_count"></span></span>
         </div>
 
-        <!-- Message Display -->
-        <div x-show="currentMessage" class="mt-8 fade-in">
-            <div class="text-2xl font-medium opacity-90 px-8">
-                <span x-text="currentMessage"></span>
-            </div>
-        </div>
         
         <!-- Completion Prompt -->
         <div x-show="showPrompt" 
@@ -275,7 +276,6 @@
                 isMuted: false,
                 showNyanCat: false,
                 nyanFlying: false,
-                currentMessage: '',
                 konamiCode: [
                     'ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown',
                     'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight',
@@ -289,9 +289,6 @@
                     // Load mute state from localStorage
                     this.isMuted = localStorage.getItem('pomodoroMuted') === 'true';
                     
-                    // Load current message from localStorage
-                    this.currentMessage = localStorage.getItem('pomodoroCurrentMessage') || '';
-                    
                     this.updateStatus();
                     setInterval(() => this.updateStatus(), 1000);
                     
@@ -299,8 +296,6 @@
                     window.addEventListener('storage', (e) => {
                         if (e.key === 'pomodoroMuted') {
                             this.isMuted = e.newValue === 'true';
-                        } else if (e.key === 'pomodoroCurrentMessage') {
-                            this.currentMessage = e.newValue || '';
                         }
                     });
                     

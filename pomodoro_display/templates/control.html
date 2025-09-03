@@ -466,9 +466,6 @@
                     // Load mute state from localStorage
                     this.isMuted = localStorage.getItem('pomodoroMuted') === 'true';
                     
-                    // Load current message from localStorage
-                    this.currentMessage = localStorage.getItem('pomodoroCurrentMessage') || '';
-                    
                     // Load settings from server and localStorage
                     await this.loadSettings();
                     
@@ -555,6 +552,8 @@
                         if (!this.taskInput && this.status.current_task) {
                             this.taskInput = this.status.current_task;
                         }
+                        // Update current message from server
+                        this.currentMessage = this.status.current_message || '';
                     } catch (error) {
                         console.error('Failed to update status:', error);
                     }
@@ -758,8 +757,6 @@
                         
                         if (response.ok) {
                             this.currentMessage = data.message;
-                            // Save to localStorage to sync with display page
-                            localStorage.setItem('pomodoroCurrentMessage', data.message);
                         } else {
                             this.showMessage(data.error || 'Failed to generate message', 'error');
                         }

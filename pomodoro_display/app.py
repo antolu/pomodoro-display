@@ -127,6 +127,7 @@ class TimerState:
         self.paused_remaining: int = 0
         self.nyan_cat_active: bool = False
         self.nyan_cat_start_time: float | None = None
+        self.current_message: str = ""
         self.lock: threading.RLock = threading.RLock()
 
     def start(self, mode: str, task: str | None = None) -> None:
@@ -249,6 +250,7 @@ class TimerState:
                 "just_completed": self.just_completed,
                 "paused": self.paused,
                 "nyan_cat": nyan_status,
+                "current_message": self.current_message,
             }
 
     def set_task(self, task: str) -> None:
@@ -478,6 +480,9 @@ def generate_message() -> Response:
     try:
         current_mode = timer.mode if timer.active else None
         message = generate_ai_message(current_mode)
+        # Store message globally for all users
+        with timer.lock:
+            timer.current_message = message
         return jsonify({"message": message, "mode": current_mode})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
