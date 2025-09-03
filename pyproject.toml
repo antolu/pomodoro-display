@@ -1,5 +1,5 @@
 [project]
-dependencies = ["flask >= 3.0", "flask-cors >= 6.0"]
+dependencies = ["flask >= 3.0", "flask-cors >= 6.0", "google-generativeai >= 0.3.0"]
 name = "pomodoro-display"
 dynamic = ["version", "readme"]
 description = "A pomodoro timer that can be remotely accessed and controlled. "
