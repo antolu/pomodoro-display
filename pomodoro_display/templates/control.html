@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pomodoro Control Panel</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <!-- Tailwind CSS: CDN with local fallback -->
+    <script src="https://cdn.tailwindcss.com" onerror="this.onerror=null; this.src='/static/js/tailwind.min.js'"></script>
+    <!-- Alpine.js: CDN with local fallback -->
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer onerror="this.onerror=null; this.src='/static/js/alpine.min.js'; this.removeAttribute('defer')"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
