@@ -36,6 +36,7 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Validate release tag
+        id: validate_tag
         run: |
           RAW_TAG="${GITHUB_REF#refs/tags/}"
           VERSION_TAG="${RAW_TAG#v}"
@@ -50,6 +51,7 @@ jobs:
 
           echo "Validated release tag: ${RAW_TAG}"
           echo "Version for image tags: ${VERSION_TAG}"
+          echo "version_tag=${VERSION_TAG}" >> "${GITHUB_OUTPUT}"
 
       - name: Extract metadata
         id: meta
@@ -57,7 +59,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=tag
+            type=raw,value=${{ steps.validate_tag.outputs.version_tag }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
