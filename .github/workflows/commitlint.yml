@@ -23,4 +23,5 @@ jobs:
       - name: Run commitlint on PR title
         run: |
           # Verify PR title follows conventional commits
-          npx --no-install commitlint --env HUSKY_GIT_PARAMS <<< "${{ github.event.pull_request.title }}"
+          echo "${{ github.event.pull_request.title }}" > /tmp/pr_title.txt
+          npx --no-install commitlint --edit /tmp/pr_title.txt
