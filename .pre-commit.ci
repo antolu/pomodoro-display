@@ -1,0 +1,10 @@
+# pre-commit.ci configuration
+# Enable labels and comments from pre-commit.ci. Install the pre-commit.ci GitHub App
+# on the repository to activate the service. The service will read your existing
+# .pre-commit-config.yaml and run hooks on pull requests.
+
+add_label: true
+add_comment: true
+labels:
+  - pre-commit.ci
+autofix: true
