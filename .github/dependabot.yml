@@ -9,7 +9,7 @@ updates:
       - "dependencies"
       - "bot"
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "chore(deps):"
     allow:
       - dependency-type: "all"
 
@@ -20,6 +20,8 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    commit-message:
+      prefix: "chore(deps):"
 
   - package-ecosystem: "pre-commit"
     directory: "/"
@@ -29,3 +31,5 @@ updates:
     labels:
       - "dependencies"
       - "pre-commit"
+    commit-message:
+      prefix: "chore(deps):"
