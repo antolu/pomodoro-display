@@ -20,9 +20,22 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Get version (for tag pushes)
+        id: get_version
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: ./.github/actions/get-version
+
       - name: Build image as OCI archive (single-platform for speed)
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
+          REF_INPUT: ${{ github.ref_name }}
         run: |
-          REF_NAME="${{ github.ref_name }}"
+          # If a version was determined (tag push), use it; otherwise use the ref name
+          if [ -n "${VERSION}" ]; then
+            REF_NAME="${VERSION}"
+          else
+            REF_NAME="${REF_INPUT}"
+          fi
           IMAGE_TAR=image-${REF_NAME}.tar
           docker buildx build --platform linux/amd64 --output type=oci,dest=${IMAGE_TAR} .
           ls -lh ${IMAGE_TAR}
@@ -32,6 +45,6 @@ jobs:
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: docker-image-${{ github.ref_name }}
-          path: image-${{ github.ref_name }}.tar
+          name: docker-image-${{ env.VERSION || github.ref_name }}
+          path: image-${{ env.VERSION || github.ref_name }}.tar
           retention-days: 30
