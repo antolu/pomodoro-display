@@ -38,7 +38,8 @@ jobs:
           username: antonlu
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Use built artifact when triggered by CI build
+      - name: Download and load image artifact
+        id: load_image
         if: ${{ github.event_name == 'workflow_run' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -70,13 +71,19 @@ jobs:
             LOADED_IMAGE=$(docker images --format '{{.Repository}}:{{.Tag}}' | head -n1)
           fi
           echo "Identified loaded image: $LOADED_IMAGE"
+          echo "loaded_image=$LOADED_IMAGE" >> $GITHUB_OUTPUT
 
-          # Determine version tag to apply (strip leading v if present)
-          REF=$(basename "$TARFILE" .tar)
-          REF=${REF#image-}
-          VERSION_TAG=${REF#v}
-          echo "Tagging image as ${REGISTRY}/${IMAGE_NAME}:${VERSION_TAG}"
+      - name: Get version via setuptools_scm
+        id: get_version
+        uses: ./.github/actions/get-version
 
+      - name: Retag and push image
+        if: ${{ github.event_name == 'workflow_run' }}
+        run: |
+          set -euo pipefail
+          LOADED_IMAGE=${{ steps.load_image.outputs.loaded_image }}
+          VERSION_TAG=${{ steps.get_version.outputs.version }}
+          echo "Retagging $LOADED_IMAGE to ${REGISTRY}/${IMAGE_NAME}:${VERSION_TAG}"
           docker tag "$LOADED_IMAGE" "${REGISTRY}/${IMAGE_NAME}:${VERSION_TAG}"
           docker push "${REGISTRY}/${IMAGE_NAME}:${VERSION_TAG}"
           echo "Docker image pushed: ${REGISTRY}/${IMAGE_NAME}:${VERSION_TAG}"
