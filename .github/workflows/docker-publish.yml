@@ -61,8 +61,25 @@ jobs:
             exit 1
           fi
           echo "Found image tar: $TARFILE"
-          docker load -i "$TARFILE"
-          echo "Docker image loaded from artifact"
+          # Load the image and capture output to determine loaded image name
+          LOAD_OUTPUT=$(docker load -i "$TARFILE" 2>&1 || true)
+          echo "$LOAD_OUTPUT"
+          LOADED_IMAGE=$(echo "$LOAD_OUTPUT" | sed -n 's/Loaded image: //p' | head -n1)
+          if [ -z "$LOADED_IMAGE" ]; then
+            # Fallback: pick the most recently created image
+            LOADED_IMAGE=$(docker images --format '{{.Repository}}:{{.Tag}}' | head -n1)
+          fi
+          echo "Identified loaded image: $LOADED_IMAGE"
+
+          # Determine version tag to apply (strip leading v if present)
+          REF=$(basename "$TARFILE" .tar)
+          REF=${REF#image-}
+          VERSION_TAG=${REF#v}
+          echo "Tagging image as ${REGISTRY}/${IMAGE_NAME}:${VERSION_TAG}"
+
+          docker tag "$LOADED_IMAGE" "${REGISTRY}/${IMAGE_NAME}:${VERSION_TAG}"
+          docker push "${REGISTRY}/${IMAGE_NAME}:${VERSION_TAG}"
+          echo "Docker image pushed: ${REGISTRY}/${IMAGE_NAME}:${VERSION_TAG}"
 
       - name: Validate release tag
         id: validate_tag
