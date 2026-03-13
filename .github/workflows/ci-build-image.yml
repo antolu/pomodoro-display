@@ -14,33 +14,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
+      - name: Docker buildx setup
+        uses: ./.github/actions/docker-buildx
+        id: docker_buildx_setup
+        with: {}
       - name: Get version (for tag pushes)
         id: get_version
         if: startsWith(github.ref, 'refs/tags/')
         uses: ./.github/actions/get-version
 
       - name: Build image as OCI archive (single-platform for speed)
+        uses: ./.github/actions/docker-buildx
         env:
           VERSION: ${{ steps.get_version.outputs.version }}
           REF_INPUT: ${{ github.ref_name }}
-        run: |
-          # If a version was determined (tag push), use it; otherwise use the ref name
-          if [ -n "${VERSION}" ]; then
-            REF_NAME="${VERSION}"
-          else
-            REF_NAME="${REF_INPUT}"
-          fi
-          IMAGE_TAR=image-${REF_NAME}.tar
-          docker buildx build --platform linux/amd64 --output type=oci,dest=${IMAGE_TAR} .
-          ls -lh ${IMAGE_TAR}
-        env:
-          DOCKER_CLI_EXPERIMENTAL: enabled
+          IMAGE_TAR: image-${{ steps.get_version.outputs.version || github.ref_name }}.tar
+          PLATFORMS: linux/amd64
+          CONTEXT: .
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
