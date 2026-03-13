@@ -1,0 +1,37 @@
+name: Build Docker image (CI)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image as OCI archive (single-platform for speed)
+        run: |
+          REF_NAME="${{ github.ref_name }}"
+          IMAGE_TAR=image-${REF_NAME}.tar
+          docker buildx build --platform linux/amd64 --output type=oci,dest=${IMAGE_TAR} .
+          ls -lh ${IMAGE_TAR}
+        env:
+          DOCKER_CLI_EXPERIMENTAL: enabled
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-${{ github.ref_name }}
+          path: image-${{ github.ref_name }}.tar
+          retention-days: 30
